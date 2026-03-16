@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Географическая викторина | Угадай на карте</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="game-container">
+        <header class="game-header">
+            <div class="logo">
+                <i class="fas fa-globe-americas"></i>
+                <h1>GeoQuiz</h1>
+            </div>
+            <div class="stats-panel">
+                <div class="stat">
+                    <i class="fas fa-star"></i>
+                    <div>
+                        <div class="stat-value" id="score">0</div>
+                        <div class="stat-label">очков</div>
+                    </div>
+                </div>
+                <div class="stat">
+                    <i class="fas fa-question-circle"></i>
+                    <div>
+                        <div class="stat-value" id="questionCounter">1/10</div>
+                        <div class="stat-label">вопрос</div>
+                    </div>
+                </div>
+                <div class="stat">
+                    <i class="fas fa-clock"></i>
+                    <div>
+                        <div class="stat-value" id="timer">30</div>
+                        <div class="stat-label">секунд</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <div class="main-content">
+            <!-- Боковая панель -->
+            <aside class="sidebar">
+                <div class="question-box">
+                    <span class="category-badge" id="category">Загрузка...</span>
+                    <div class="question-text" id="question">Подготовка вопроса...</div>
+                    
+                    <button class="btn btn-secondary" onclick="toggleHint()" style="width: 100%; margin-bottom: 15px;">
+                        <i class="fas fa-lightbulb"></i> Показать подсказку
+                    </button>
+                    
+                    <div class="hint-box" id="hintBox">
+                        <i class="fas fa-info-circle"></i>
+                        <span id="hintText">Подсказка появится здесь</span>
+                    </div>
+                    
+                    <div class="timer-box">
+                        <div class="timer-display" id="timerDisplay">30</div>
+                        <div>осталось времени</div>
+                    </div>
+                    
+                    <div class="progress-section">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <span>Прогресс</span>
+                            <span id="progressPercent">10%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progress" style="width: 10%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()" disabled>
+                        <i class="fas fa-arrow-right"></i> Следующий вопрос
+                    </button>
+                    <button class="btn btn-secondary" onclick="showAddQuestionModal()">
+                        <i class="fas fa-plus"></i> Предложить вопрос
+                    </button>
+                    <button class="btn btn-secondary" onclick="refreshLeaderboard()">
+                        <i class="fas fa-trophy"></i> Обновить лидеров
+                    </button>
+                </div>
+
+                <!-- Таблица лидеров -->
+                <div class="leaderboard">
+                    <h3><i class="fas fa-trophy" style="color: #ffd700;"></i> Таблица лидеров</h3>
+                    <table id="leaderboardTable">
+                        <tr>
+                            <td colspan="3" style="text-align: center;">Загрузка...</td>
+                        </tr>
+                    </table>
+                </div>
+            </aside>
+
+            <!-- Карта -->
+            <div class="map-container">
+                <div id="map"></div>
+                <div class="result-overlay" id="resultOverlay">
+                    <div class="points-earned" id="earnedPoints">+100</div>
+                    <div class="distance-info" id="distanceInfo">Расстояние: 0 км</div>
+                    <div id="feedbackText" style="font-size: 14px;">Отлично!</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для добавления вопроса -->
+    <div class="modal" id="addQuestionModal">
+        <div class="modal-content">
+            <h2><i class="fas fa-plus-circle"></i> Предложить вопрос</h2>
+            <form onsubmit="submitQuestion(event)">
+                <div class="form-group">
+                    <label>Вопрос</label>
+                    <input type="text" id="newQuestion" required placeholder="Например: Где находится Биг-Бен?">
+                </div>
+                <div class="form-group">
+                    <label>Категория</label>
+                    <select id="newCategory" required>
+                        <option value="Достопримечательности">Достопримечательности</option>
+                        <option value="Чудеса света">Чудеса света</option>
+                        <option value="Столицы">Столицы</option>
+                        <option value="Природные объекты">Природные объекты</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Сложность</label>
+                    <select id="newDifficulty" required>
+                        <option value="easy">Легко</option>
+                        <option value="medium">Средне</option>
+                        <option value="hard">Сложно</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Подсказка</label>
+                    <textarea id="newHint" rows="2" required placeholder="Краткая подсказка"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Координаты (широта, долгота)</label>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="number" id="newLat" step="any" required placeholder="Широта">
+                        <input type="number" id="newLng" step="any" required placeholder="Долгота">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">Отправить</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideModal()">Отмена</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="toast" id="toast">
+        <i class="fas fa-check-circle" style="color: #00b09b;"></i>
+        <span id="toastMessage">Уведомление</span>
+    </div>
+
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="script.js"></script>
+    
+
+</body>
+</html>
